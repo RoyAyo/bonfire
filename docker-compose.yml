@@ -1,0 +1,33 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: ${DB_USERNAME:-yourusername}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-mypass}
+      POSTGRES_DB: ${DB_NAME:-task_1}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      DB_NAME: ${DB_NAME:-task_1}
+      DB_HOST: db
+      DB_USERNAME: ${DB_USERNAME:-test}
+      DB_PASSWORD: ${DB_PASSWORD:-mypass}
+    volumes:
+      - .:/usr/src/app
+    ports:
+      - "3000:3000"
+    depends_on:
+      - db
+    command: sh -c "npm run db:create && npm start"
+
+volumes:
+  postgres_data:

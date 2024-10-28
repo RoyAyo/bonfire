@@ -4,8 +4,9 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "start": "npm run build && node build/index.js",
-    "build": "rimraf ./build && tsc",
+    "start": "node dist/main.js",
+    "build": "tsc",
+    "db:create": "node dist/schema/index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
@@ -13,11 +14,14 @@
   "license": "ISC",
   "devDependencies": {
     "@types/node": "^22.8.1",
+    "@types/node-schedule": "^2.1.7",
     "@types/pg": "^8.11.10",
     "rimraf": "^6.0.1",
     "typescript": "^5.6.3"
   },
   "dependencies": {
+    "dotenv": "^16.4.5",
+    "node-schedule": "^2.1.1",
     "pg": "^8.13.1"
   }
 }

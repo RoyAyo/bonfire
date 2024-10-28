@@ -1,6 +1,12 @@
 import dbPool from '../config/pool';
+import RegionService from './region.service';
 
 class QuestionService {
+    private regionService: RegionService;
+
+    constructor() {
+        this.regionService = new RegionService();
+    }
 
     async getLastAssignedQuestionId(): Promise<number | null> {
         try {
@@ -25,7 +31,7 @@ class QuestionService {
         try {
             let nextUnnasignedId = await this.nextUnnasignedId(questionCount);
             console.log(nextUnnasignedId, regionCount);
-            await dbPool.query('UPDATE questions SET current_region_id = NULL, is_assigned = FALSE WHERE is_assigned = TRUE AND current_region_id = 0');
+            await dbPool.query('UPDATE questions SET current_region_id = NULL, is_assigned = FALSE WHERE is_assigned = TRUE AND current_region_id = 1');
             await dbPool.query('UPDATE questions SET current_region_id = current_region_id - 1 WHERE is_assigned = TRUE');
             await dbPool.query('UPDATE questions SET is_assigned = TRUE, current_region_id = $1 WHERE id = $2', [regionCount - 1, nextUnnasignedId]);
         } catch (error) {
@@ -38,11 +44,11 @@ class QuestionService {
             await dbPool.query(`
                 UPDATE questions 
                 SET current_region_id = CASE 
-                    WHEN current_region_id != 0 AND is_assigned = TRUE THEN current_region_id - 1
-                    WHEN current_region_id = 0 AND is_assigned = TRUE THEN $1
+                    WHEN current_region_id = 1 AND is_assigned = TRUE THEN $1
+                    WHEN current_region_id != 1 AND is_assigned = TRUE THEN current_region_id - 1
                     ELSE current_region_id
                 END
-            `, [regionCount - 1]);
+            `, [regionCount]);
             console.log('Region counts updated successfully');
         } catch (error) {
             console.error('Error updating region counts', error);
@@ -79,22 +85,10 @@ class QuestionService {
         return result?.rows[0].id ?? 0;
     }
 
-    async includeNewRegion(regionCount: number): Promise<void> {
-        const noOfquestions = await this.count();
-        const result = await this.nextUnnasignedId(noOfquestions);
-        if(result == 0) {
-            return;
-        }
-        await dbPool.query(`UPDATE questions SET current_region_id = $1, is_assigned = TRUE WHERE id = $2`, [regionCount, result]);
-        return;
-    }
-
-    async adjustRegions(): Promise<void> {
+    async roundRobin(): Promise<void> {
         try {
-            const questionCountResult = await dbPool.query('SELECT COUNT(*) FROM questions');
-            const regionCountResult = await dbPool.query('SELECT COUNT(*) FROM regions');
-            const questionCount = parseInt(questionCountResult?.rows[0].count ?? '0', 10);
-            const regionCount = parseInt(regionCountResult?.rows[0].count ?? '0', 10);
+            const questionCount: number = await this.count();
+            const regionCount: number = await this.regionService.count();
 
             if (questionCount === regionCount || regionCount > questionCount) {
                 await this.updateRegionCounts(regionCount);
@@ -107,9 +101,6 @@ class QuestionService {
         }
     }
 }
-
-const questionService = new QuestionService();
-questionService.adjustRegions();
 
 
 export default QuestionService;
